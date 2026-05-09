@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FORTIS — Security Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+:root {
+  --white:    #ffffff;
+  --bg:       #f5f6f8;
+  --surface:  #ffffff;
+  --border:   #e5e7eb;
+  --border2:  #d1d5db;
+  --text:     #111827;
+  --text2:    #6b7280;
+  --text3:    #9ca3af;
+  --primary:  #1d4ed8;
+  --primary-hover: #1e40af;
+  --primary-light: #eff6ff;
+  --red:      #dc2626;
+  --red-bg:   #fef2f2;
+  --orange:   #d97706;
+  --orange-bg:#fffbeb;
+  --blue:     #2563eb;
+  --blue-bg:  #eff6ff;
+  --green:    #16a34a;
+  --green-bg: #f0fdf4;
+  --gray-bg:  #f9fafb;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow:    0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+  --r:  6px;
+  --r2: 10px;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', sans-serif;
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-shield {
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.logo-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+.logo-sub {
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+}
+
+.sidebar-nav {
+  padding: 12px 10px;
+  flex: 1;
+}
+
+.nav-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text3);
+  padding: 8px 10px 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: var(--r);
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  user-select: none;
+}
+.nav-item:hover { background: var(--gray-bg); color: var(--text); }
+.nav-item.active { background: var(--primary-light); color: var(--primary); }
+.nav-item .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--border);
+  border-radius: 20px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text2);
+  min-width: 20px;
+  text-align: center;
+}
+.nav-item.active .nav-badge { background: var(--primary); color: white; }
+
+.sidebar-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+}
+.status-dot.scanning { background: var(--primary); animation: pulse-dot 1.2s ease-in-out infinite; }
+.status-dot.error    { background: var(--red); }
+.status-dot.idle     { background: var(--border2); }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+}
+
+/* ── Main Content ────────────────────────────────────────── */
+.main {
+  margin-left: 220px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top bar ─────────────────────────────────────────────── */
+.topbar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.topbar-sub {
+  font-size: 12px;
+  color: var(--text3);
+  font-family: var(--mono);
+  margin-top: 1px;
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+
+/* ── Page area ───────────────────────────────────────────── */
+.page {
+  padding: 28px;
+  display: none;
+  flex-direction: column;
+  gap: 20px;
+}
+.page.active { display: flex; }
+
+/* ── Cards ───────────────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  box-shadow: var(--shadow-sm);
+}
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.card-subtitle {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+.card-body { padding: 20px; }
+
+/* ── Scan form ───────────────────────────────────────────── */
+.scan-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.input-wrap {
+  flex: 1;
+  position: relative;
+}
+
+.input-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+
+input[type="text"], input[type="url"] {
+  width: 100%;
+  padding: 9px 13px;
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--white);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input[type="text"]:focus, input[type="url"]:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(29,78,216,0.08);
+}
+input[type="text"].error { border-color: var(--red); }
+input[type="text"]::placeholder { color: var(--text3); }
+
+.btn-primary {
+  padding: 9px 22px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--r);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  box-shadow: var(--shadow-md);
+}
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  padding: 7px 16px;
+  background: var(--white);
+  color: var(--text2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-secondary:hover { background: var(--gray-bg); color: var(--text); }
+
+.error-msg {
+  font-size: 12px;
+  color: var(--red);
+  display: none;
+  padding: 8px 12px;
+  background: var(--red-bg);
+  border-radius: var(--r);
+  border: 1px solid #fecaca;
+}
+.error-msg.show { display: block; }
+
+/* ── Stats row ───────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+}
+.stat-num {
+  font-size: 26px;
+  font-weight: 700;
+  font-family: var(--mono);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-num.total    { color: var(--text); }
+.stat-num.critical { color: #991b1b; }
+.stat-num.high     { color: var(--red); }
+.stat-num.medium   { color: var(--orange); }
+.stat-num.low      { color: var(--blue); }
+.stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+/* ── Module status cards ─────────────────────────────────── */
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.module-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s;
+}
+.module-card.running  { border-color: var(--primary); background: var(--primary-light); }
+.module-card.completed { border-color: #86efac; background: var(--green-bg); }
+.module-card.error    { border-color: #fca5a5; background: var(--red-bg); }
+
+.mod-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border2);
+  flex-shrink: 0;
+}
+.module-card.pending   .mod-dot { background: var(--text3); }
+.module-card.running   .mod-dot { background: var(--primary); animation: pulse-dot 1s ease-in-out infinite; }
+.module-card.completed .mod-dot { background: var(--green); }
+.module-card.error     .mod-dot { background: var(--red); }
+
+.mod-info { min-width: 0; }
+.mod-name  { font-size: 13px; font-weight: 600; color: var(--text); }
+.mod-status {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: var(--mono);
+}
+.module-card.running   .mod-status { color: var(--primary); }
+.module-card.completed .mod-status { color: var(--green); }
+.module-card.error     .mod-status { color: var(--red); }
+
+/* ── Stage bar ───────────────────────────────────────────── */
+.stage-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--gray-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  font-size: 12px;
+}
+.stage-label { color: var(--text3); font-weight: 500; }
+.stage-value { color: var(--primary); font-family: var(--mono); font-weight: 500; }
+.stage-sep   { color: var(--border2); }
+.stage-right { margin-left: auto; color: var(--text3); font-family: var(--mono); font-size: 11px; }
+
+/* ── Progress bar ────────────────────────────────────────── */
+.progress-bar-wrap {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  width: 0%;
+}
+
+/* ── Findings list ───────────────────────────────────────── */
+.findings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.finding-row {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s;
+}
+.finding-row:hover { box-shadow: var(--shadow); }
+.finding-row[data-sev="Critical"] { border-left-color: #991b1b; }
+.finding-row[data-sev="High"]     { border-left-color: var(--red); }
+.finding-row[data-sev="Medium"]   { border-left-color: var(--orange); }
+.finding-row[data-sev="Low"]      { border-left-color: var(--blue); }
+.finding-row[data-sev="Info"]     { border-left-color: var(--border2); }
+
+.finding-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+.finding-top:hover { background: var(--gray-bg); }
+
+.sev-tag {
+  padding: 2px 9px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+  font-family: var(--mono);
+}
+.sev-tag.Critical { background: #fee2e2; color: #991b1b; }
+.sev-tag.High     { background: var(--red-bg); color: var(--red); }
+.sev-tag.Medium   { background: var(--orange-bg); color: var(--orange); }
+.sev-tag.Low      { background: var(--blue-bg); color: var(--blue); }
+.sev-tag.Info     { background: var(--gray-bg); color: var(--text3); }
+
+.finding-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.finding-endpoint {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text3);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.finding-chevron {
+  color: var(--text3);
+  font-size: 11px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.finding-row.open .finding-chevron { transform: rotate(90deg); }
+
+.finding-detail {
+  display: none;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--gray-bg);
+}
+.finding-row.open .finding-detail { display: block; }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px 16px;
+  font-size: 13px;
+}
+.detail-key {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-top: 2px;
+}
+.detail-val { color: var(--text2); word-break: break-all; }
+.detail-val.code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--text);
+  display: block;
+}
+
+.empty-state {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+}
+.empty-icon { font-size: 28px; margin-bottom: 8px; }
+
+/* ── Filter bar ──────────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--white);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+.filter-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+.filter-count { margin-left: 4px; opacity: 0.7; }
+
+/* ── Report ──────────────────────────────────────────────── */
+.report-body {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text2);
+}
+.report-body h1, .report-body h2 {
+  font-family: var(--sans);
+  color: var(--text);
+  margin: 22px 0 8px;
+  font-size: 16px;
+}
+.report-body h3 {
+  color: var(--primary);
+  margin: 16px 0 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.report-body strong { color: var(--text); }
+.report-body code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--gray-bg);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--primary);
+}
+.report-body p { margin-bottom: 10px; }
+.report-body ul { padding-left: 20px; margin-bottom: 10px; }
+.report-body li { margin-bottom: 4px; }
+
+/* ── Spinner ─────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  display: inline-block;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── Fade in ─────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.25s ease forwards; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .stats-grid { grid-template-columns: repeat(3, 1fr); }
+  .finding-endpoint { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── Sidebar ───────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-shield">F</div>
+      <div>
+        <div class="logo-title">FORTIS</div>
+        <div class="logo-sub">SECURITY SCANNER</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Scanner</div>
+      <button class="nav-item active" onclick="showPage('scan')" id="nav-scan">
+        <span class="nav-icon">⌖</span> New Scan
+      </button>
+
+      <div class="nav-section-label" style="margin-top:12px">Results</div>
+      <button class="nav-item" onclick="showPage('all')" id="nav-all">
+        <span class="nav-icon">☰</span> All Findings
+        <span class="nav-badge" id="nb-all">0</span>
+      </button>
+
+      <!-- Dynamic module nav — injected by JS -->
+      <div id="moduleNav"></div>
+
+      <div class="nav-section-label" style="margin-top:12px">Report</div>
+      <button class="nav-item" onclick="showPage('report')" id="nav-report">
+        <span class="nav-icon">◈</span> AI Report
+        <span class="nav-badge" id="nb-report">—</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-pill">
+        <div class="status-dot idle" id="statusDot"></div>
+        <span id="statusText">Ready</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ──────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+        <div class="topbar-sub" id="topbarSub">Enter a target URL to begin scanning</div>
+      </div>
+      <div class="topbar-right"></div>
+    </div>
+
+    <!-- ── Scan Page ───────────────────────────────────── -->
+    <div class="page active" id="page-scan">
+
+      <!-- Scan form card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Target URL</div>
+            <div class="card-subtitle">Enter the website to scan for vulnerabilities</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="scan-form">
+            <div class="input-group">
+              <div class="input-wrap">
+                <input
+                  type="text"
+                  id="urlInput"
+                  placeholder="https://example.com"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <button class="btn-primary" id="scanBtn" onclick="startScan()">
+                <span id="scanSpinner" style="display:none"><span class="spinner"></span></span>
+                <span id="scanBtnTxt">Start Scan</span>
+              </button>
+            </div>
+            <div class="error-msg" id="errorMsg"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress card (hidden until scan starts) -->
+      <div class="card" id="progressCard" style="display:none">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Scan Progress</div>
+            <div class="card-subtitle" id="progressSub">Initializing...</div>
+          </div>
+          <div style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="elapsedTime"></div>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+          <div class="stage-bar">
+            <span class="stage-label">Stage</span>
+            <span class="stage-sep">/</span>
+            <span class="stage-value" id="stageValue">—</span>
+            <span class="stage-right" id="crawledCount"></span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <div class="modules-grid" id="modulesGrid"></div>
+        </div>
+      </div>
+
+      <!-- Stats (hidden until findings arrive) -->
+      <div id="statsSection" style="display:none">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-num total" id="stTotal">0</div>
+            <div class="stat-label">Total</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num critical" id="stCritical">0</div>
+            <div class="stat-label">Critical</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num high" id="stHigh">0</div>
+            <div class="stat-label">High</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num medium" id="stMedium">0</div>
+            <div class="stat-label">Medium</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num low" id="stLow">0</div>
+            <div class="stat-label">Low</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-scan -->
+
+    <!-- ── All Findings Page ───────────────────────────── -->
+    <div class="page" id="page-all">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">All Findings</div>
+            <div class="card-subtitle" id="allFindingsSub">No scan completed yet</div>
+          </div>
+          <div class="filter-bar" id="filterBar">
+            <button class="filter-btn active" onclick="applyFilter('all', this)">All</button>
+            <button class="filter-btn" onclick="applyFilter('Critical', this)">Critical</button>
+            <button class="filter-btn" onclick="applyFilter('High', this)">High</button>
+            <button class="filter-btn" onclick="applyFilter('Medium', this)">Medium</button>
+            <button class="filter-btn" onclick="applyFilter('Low', this)">Low</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="findings-container" id="allFindings">
+            <div class="empty-state">
+              <div class="empty-icon">🔍</div>
+              Start a scan to see findings here.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Per-module pages — injected by JS ──────────── -->
+    <div id="modulePages"></div>
+
+    <!-- ── Report Page ────────────────────────────────── -->
+    <div class="page" id="page-report">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">AI Security Report</div>
+            <div class="card-subtitle">Generated by Gemini — configured via .env</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary" onclick="downloadPDF()">⬇ PDF Report</button>
+            <button class="btn-secondary" id="copyBtn" onclick="copyReport()">⎘ Copy</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="report-body" id="reportBody">
+            <div class="empty-state">
+              <div class="empty-icon">◈</div>
+              The AI-generated report will appear here after the scan completes.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+// ── Config — API base read from meta tag or default ───────────────────────
+// The backend URL is configured here. In production, set it to your server.
+const API_BASE = 'http://localhost:8000';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let modules       = [];   // from /api/modules
+let allFindings   = [];
+let modFindings   = {};
+let reportText    = '';
+let evtSource     = null;
+let scanStart     = null;
+let elapsedTimer  = null;
+let activeFilter  = 'all';
+let currentScanId = null;
+
+// Stage → progress %
+const STAGE_PROGRESS = {
+  initializing: 5, reachability: 15, crawling: 30,
+  scanning: 60, reporting: 85, generating_report: 95,
+};
+const STAGE_LABELS = {
+  initializing: 'Initializing', reachability: 'Checking Target',
+  crawling: 'Crawling Pages', scanning: 'Running Scanners',
+  reporting: 'Merging Results', generating_report: 'Generating AI Report',
+};
+
+// ── Init: load modules from backend ──────────────────────────────────────
+async function init() {
+  try {
+    const res = await fetch(`${API_BASE}/api/modules`);
+    const data = await res.json();
+    modules = data.modules;
+
+    const dot = document.getElementById('geminiDot');
+    const txt = document.getElementById('geminiStatus');
+    if (data.config.gemini_enabled) {
+      if (dot) dot.classList.add('on');
+      if (txt) txt.textContent = 'Gemini ✓';
+    } else {
+      if (txt) txt.textContent = 'Gemini (no key)';
+    }
+
+    buildModuleNav(modules);
+    buildModulePages(modules);
+    buildModuleGrid(modules);
+
+  } catch (e) {
+    console.warn('Could not reach backend:', e.message);
+    // Fallback static modules
+    modules = [
+      { id:'recon',   label:'Recon',        icon:'🔍' },
+      { id:'secrets', label:'Secrets',       icon:'🔑' },
+      { id:'auth',    label:'Auth',          icon:'🔒' },
+      { id:'sqli',    label:'SQL Injection', icon:'💉' },
+      { id:'bola',    label:'BOLA / IDOR',   icon:'🎯' },
+    ];
+    buildModuleNav(modules);
+    buildModulePages(modules);
+    buildModuleGrid(modules);
+  }
+}
+
+// ── Build sidebar nav items for each module ───────────────────────────────
+function buildModuleNav(mods) {
+  const nav = document.getElementById('moduleNav');
+  nav.innerHTML = mods.map(m => `
+    <button class="nav-item" onclick="showPage('mod-${m.id}')" id="nav-mod-${m.id}">
+      <span class="nav-icon">${m.icon || '◉'}</span> ${m.label}
+      <span class="nav-badge" id="nb-${m.id}">0</span>
+    </button>`).join('');
+}
+
+// ── Build per-module result pages ─────────────────────────────────────────
+function buildModulePages(mods) {
+  const container = document.getElementById('modulePages');
+  container.innerHTML = mods.map(m => `
+    <div class="page" id="page-mod-${m.id}">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${m.icon || ''} ${m.label}</div>
+            <div class="card-subtitle">${m.description || ''}</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="findings-container" id="findings-${m.id}">
+            <div class="empty-state">
+              <div class="empty-icon">${m.icon || '◉'}</div>
+              Waiting for scan results...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Build module status grid (shown during scan) ──────────────────────────
+function buildModuleGrid(mods) {
+  const grid = document.getElementById('modulesGrid');
+  grid.innerHTML = mods.map(m => `
+    <div class="module-card pending" id="mc-${m.id}">
+      <div class="mod-dot"></div>
+      <div class="mod-info">
+        <div class="mod-name">${m.icon || ''} ${m.label}</div>
+        <div class="mod-status" id="ms-${m.id}">Pending</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Page navigation ───────────────────────────────────────────────────────
+function showPage(id) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // Deactivate all nav items
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  // Show target page
+  const pageId = id.startsWith('mod-') ? `page-${id}` : `page-${id}`;
+  const page = document.getElementById(pageId);
+  if (page) page.classList.add('active');
+
+  // Activate nav item
+  const navId = id.startsWith('mod-') ? `nav-${id}` : `nav-${id}`;
+  const nav = document.getElementById(navId);
+  if (nav) nav.classList.add('active');
+
+  // Update topbar
+  const titles = { scan: 'New Scan', all: 'All Findings', report: 'AI Report' };
+  const title = titles[id] || modules.find(m => `mod-${m.id}` === id)?.label || id;
+  document.getElementById('topbarTitle').textContent = title;
+}
+
+// ── URL validation ────────────────────────────────────────────────────────
+function validateUrl(url) {
+  if (!url) return 'Please enter a target URL.';
+  if (!url.startsWith('http://') && !url.startsWith('https://'))
+    return 'URL must start with http:// or https://';
+  try { new URL(url); } catch { return 'Invalid URL format.'; }
+  return null;
+}
+
+// ── Start scan ────────────────────────────────────────────────────────────
+async function startScan() {
+  const urlEl  = document.getElementById('urlInput');
+  const errEl  = document.getElementById('errorMsg');
+  const url    = urlEl.value.trim();
+
+  const err = validateUrl(url);
+  if (err) {
+    errEl.textContent = err;
+    errEl.classList.add('show');
+    urlEl.classList.add('error');
+    return;
+  }
+  errEl.classList.remove('show');
+  urlEl.classList.remove('error');
+
+  // Reset state
+  allFindings = [];
+  modFindings = {};
+  reportText  = '';
+  activeFilter = 'all';
+
+  // Reset UI
+  buildModuleGrid(modules);
+  modules.forEach(m => {
+    document.getElementById(`nb-${m.id}`).textContent = '0';
+    const fc = document.getElementById(`findings-${m.id}`);
+    if (fc) fc.innerHTML = `<div class="empty-state"><div class="empty-icon">${m.icon||'◉'}</div>Scanning...</div>`;
+  });
+  document.getElementById('nb-all').textContent = '0';
+  document.getElementById('nb-report').textContent = '—';
+  document.getElementById('allFindings').innerHTML =
+    `<div class="empty-state"><div class="empty-icon">🔍</div>Scanning in progress...</div>`;
+  document.getElementById('reportBody').innerHTML =
+    `<div class="empty-state"><div class="empty-icon">◈</div>Report will appear after scan completes.</div>`;
+  updateStats([]);
+  document.getElementById('statsSection').style.display = 'none';
+  document.getElementById('progressCard').style.display = 'block';
+  document.getElementById('progressBar').style.width = '5%';
+  document.getElementById('stageValue').textContent = 'Initializing';
+  document.getElementById('crawledCount').textContent = '';
+  document.getElementById('progressSub').textContent = `Scanning ${url}`;
+  document.getElementById('topbarSub').textContent = url;
+
+  // Disable button
+  setScanning(true);
+  setStatus('scanning', 'Scanning...');
+
+  // Start elapsed timer
+  scanStart = Date.now();
+  clearInterval(elapsedTimer);
+  elapsedTimer = setInterval(() => {
+    const s = Math.floor((Date.now() - scanStart) / 1000);
+    document.getElementById('elapsedTime').textContent = `${s}s`;
+  }, 1000);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      throw new Error(d.detail || 'Failed to start scan');
+    }
+    const data = await res.json();
+    currentScanId = data.scan_id;
+    openSSE(data.scan_id);
+  } catch (e) {
+    showErr(e.message);
+    setScanning(false);
+    setStatus('error', 'Error');
+    clearInterval(elapsedTimer);
+  }
+}
+
+// ── SSE stream ────────────────────────────────────────────────────────────
+function openSSE(scanId) {
+  if (evtSource) { evtSource.close(); evtSource = null; }
+  evtSource = new EventSource(`${API_BASE}/api/scan/${scanId}/stream`);
+
+  evtSource.addEventListener('stage_update', e => {
+    const d = JSON.parse(e.data);
+    document.getElementById('stageValue').textContent =
+      STAGE_LABELS[d.stage] || (d.stage || '—');
+    const pct = STAGE_PROGRESS[d.stage] || 50;
+    document.getElementById('progressBar').style.width = pct + '%';
+    if (d.crawled_count) {
+      document.getElementById('crawledCount').textContent = `${d.crawled_count} URLs crawled`;
+    }
+  });
+
+  evtSource.addEventListener('module_update', e => {
+    const d = JSON.parse(e.data);
+    updateModuleCard(d.module, d.status, 0);
+  });
+
+  evtSource.addEventListener('module_findings', e => {
+    const d = JSON.parse(e.data);
+    modFindings[d.module] = d.findings;
+
+    // Render in module page
+    renderModuleFindings(d.module, d.findings);
+    updateModuleCard(d.module, 'completed', d.findings.length);
+    document.getElementById(`nb-${d.module}`).textContent = d.findings.length;
+
+    // Add to all findings
+    d.findings.forEach(f => { f._module = d.module; allFindings.push(f); });
+    renderAllFindings();
+    document.getElementById('nb-all').textContent = allFindings.length;
+    updateStats(allFindings);
+    document.getElementById('statsSection').style.display = 'block';
+  });
+
+  evtSource.addEventListener('report', e => {
+    const d = JSON.parse(e.data);
+    reportText = d.content;
+    renderReport(reportText);
+    document.getElementById('nb-report').textContent = '✓';
+  });
+
+  evtSource.addEventListener('done', e => {
+    const d = JSON.parse(e.data);
+    evtSource.close(); evtSource = null;
+    clearInterval(elapsedTimer);
+    setScanning(false);
+    setStatus('ready', 'Complete');
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('stageValue').textContent = 'Complete';
+    document.getElementById('progressSub').textContent =
+      `Scan complete — ${d.total_findings} findings in ${d.duration}s`;
+    document.getElementById('topbarSub').textContent =
+      `${d.total_findings} findings · ${d.duration}s`;
+  });
+
+  evtSource.addEventListener('error', e => {
+    let msg = 'Stream error';
+    try { msg = JSON.parse(e.data).message; } catch {}
+    evtSource.close(); evtSource = null;
+    clearInterval(elapsedTimer);
+    showErr(msg);
+    setScanning(false);
+    setStatus('error', 'Error');
+  });
+
+  evtSource.onerror = () => {
+    if (evtSource?.readyState === EventSource.CLOSED) {
+      setScanning(false);
+      clearInterval(elapsedTimer);
+    }
+  };
+}
+
+// ── Update module status card ─────────────────────────────────────────────
+function updateModuleCard(id, status, count) {
+  const card = document.getElementById(`mc-${id}`);
+  const stat = document.getElementById(`ms-${id}`);
+  if (!card) return;
+  card.className = `module-card ${status}`;
+  const labels = {
+    pending: 'Pending', running: 'Scanning...', error: 'Error',
+    completed: `${count} finding${count !== 1 ? 's' : ''}`,
+  };
+  stat.textContent = labels[status] || status;
+}
+
+// ── Render finding card ───────────────────────────────────────────────────
+function makeFinding(f, idx) {
+  const sev = f.severity || 'Low';
+  const url = f.source_url || '';
+  const shortUrl = url.length > 65 ? '…' + url.slice(-62) : url;
+  const id = `f-${idx}`;
+  return `
+    <div class="finding-row fade-in" data-sev="${sev}" id="${id}">
+      <div class="finding-top" onclick="toggleFinding('${id}')">
+        <span class="sev-tag ${sev}">${sev}</span>
+        <span class="finding-name">${esc(f.check || 'Finding')}</span>
+        <span class="finding-endpoint">${esc(shortUrl)}</span>
+        <span class="finding-chevron">▶</span>
+      </div>
+      <div class="finding-detail">
+        <div class="detail-grid">
+          <span class="detail-key">Description</span>
+          <span class="detail-val">${esc(f.description || '—')}</span>
+          <span class="detail-key">Endpoint</span>
+          <span class="detail-val">${esc(f.source_url || '—')}</span>
+          ${f.evidence ? `
+          <span class="detail-key">Evidence</span>
+          <span class="detail-val code">${esc(f.evidence)}</span>
+          ` : ''}
+          ${f.category && f.category !== 'general' ? `
+          <span class="detail-key">Category</span>
+          <span class="detail-val">${esc(f.category)}</span>
+          ` : ''}
+          ${f._module ? `
+          <span class="detail-key">Scanner</span>
+          <span class="detail-val">${esc(f._module)}</span>
+          ` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleFinding(id) {
+  document.getElementById(id)?.classList.toggle('open');
+}
+
+function renderModuleFindings(module, findings) {
+  const el = document.getElementById(`findings-${module}`);
+  if (!el) return;
+  if (!findings.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>No findings detected.</div>`;
+    return;
+  }
+  el.innerHTML = findings.map((f, i) => makeFinding(f, `${module}-${i}`)).join('');
+}
+
+function renderAllFindings() {
+  const el = document.getElementById('allFindings');
+  let data = [...allFindings];
+
+  if (activeFilter !== 'all') {
+    data = data.filter(f => f.severity === activeFilter);
+  }
+
+  const sev = { Critical:0, High:1, Medium:2, Low:3, Info:4 };
+  data.sort((a, b) => (sev[a.severity]??5) - (sev[b.severity]??5));
+
+  if (!data.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div>No findings for this filter.</div>`;
+    return;
+  }
+  el.innerHTML = data.map((f, i) => makeFinding(f, `all-${i}`)).join('');
+  document.getElementById('allFindingsSub').textContent =
+    `${allFindings.length} total finding${allFindings.length !== 1 ? 's' : ''}`;
+}
+
+// ── Filter ────────────────────────────────────────────────────────────────
+function applyFilter(sev, btn) {
+  activeFilter = sev;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAllFindings();
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+function updateStats(findings) {
+  const c = { Critical:0, High:0, Medium:0, Low:0 };
+  findings.forEach(f => { if (c[f.severity] !== undefined) c[f.severity]++; });
+  document.getElementById('stTotal').textContent   = findings.length;
+  document.getElementById('stCritical').textContent = c.Critical;
+  document.getElementById('stHigh').textContent    = c.High;
+  document.getElementById('stMedium').textContent  = c.Medium;
+  document.getElementById('stLow').textContent     = c.Low;
+}
+
+// ── Report ────────────────────────────────────────────────────────────────
+function renderReport(md) {
+  let html = esc(md)
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>');
+  document.getElementById('reportBody').innerHTML = `<p>${html}</p>`;
+}
+
+function downloadPDF() {
+  if (!currentScanId) { alert('No completed scan available.'); return; }
+  const link = document.createElement('a');
+  link.href = `${API_BASE}/api/scan/${currentScanId}/report.pdf`;
+  link.download = '';
+  link.click();
+}
+
+function downloadReport() {
+  if (!reportText) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([reportText], { type: 'text/markdown' }));
+  a.download = `FORTIS_Report_${new Date().toISOString().slice(0,10)}.md`;
+  a.click();
+}
+
+function copyReport() {
+  if (!reportText) return;
+  navigator.clipboard.writeText(reportText).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ Copied';
+    setTimeout(() => btn.textContent = '⎘ Copy', 2000);
+  });
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────
+function setScanning(on) {
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = on;
+  document.getElementById('scanSpinner').style.display = on ? 'inline-block' : 'none';
+  document.getElementById('scanBtnTxt').textContent = on ? 'Scanning...' : 'Start Scan';
+}
+
+function setStatus(type, label) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = `status-dot ${type === 'scanning' ? 'scanning' : type === 'error' ? 'error' : 'idle'}`;
+  txt.textContent = label;
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Enter key on URL input ────────────────────────────────────────────────
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
